@@ -4,7 +4,7 @@
     "description": "A XML (Un-)Serialization Library, full configureable via annotations.",
     "keywords": ["xml", "serialization", "annotation"],
     "license": "MIT",
-    "homepage": "https://github.com/possi/jas_debug",
+    "homepage": "https://github.com/possi/jas_xml",
     "require": {
         "php": ">=5.3.0"
     },
@@ -12,8 +12,6 @@
         "psr-0": { "jas\\xml\\": "src/" }
     },
     "require": {
-        "doctrine/orm": "2.3.*",
-        "doctrine/common": "2.3.*",
         "doctrine/annotations": "1.*"
     }
 }

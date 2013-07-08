@@ -1,20 +1,26 @@
 <?php
 
 namespace jas\xml\Definition;
-
+use jas\xml\Definition\Property\ElementNode;
+use jas\xml\Definition\Property\Collection;
+use jas\xml\Definition\Property\PropertyTypeDefinition;
+use jas\xml\Definition\Property\AttributeNode;
+use jas\xml\Definition\Property\ValueNode;
 use jas\xml\MetaDataException;
 
-class Property extends Generic implements \Serializable {
+class Property extends GenericXmlDefinition implements \Serializable {
     const TYPE_ATTRIBUTE = 1;
     const TYPE_ELEMENT = 2;
+    const TYPE_VALUE = 3;
     
     private $_parent;
     private $name;
-    private $type;
     private $collection;
+    private $type;
     private $data_type = null;
     
     public function __construct(Klass $klass, $name) {
+        parent::__construct();
         $this->_parent = $klass;
         $this->name = $name;
     }
@@ -22,51 +28,62 @@ class Property extends Generic implements \Serializable {
         return $this->name;
     }
     public function getType() {
+        if ($this->type instanceof ValueNode)
+            return self::TYPE_VALUE;
+        elseif ($this->type instanceof ElementNode)
+            return self::TYPE_ELEMENT;
+        else
+            return self::TYPE_ATTRIBUTE;
+    }
+    public function setTypeDefinition(PropertyTypeDefinition $def) {
+        $this->type = $def;
+    }
+    /**
+     * @return PropertyTypeDefinition
+     */
+    public function getTypeDefinition() {
         return $this->type;
     }
-    public function isCollection() {
-        return $this->collection != false;
+    public function setCollection(Collection $col) {
+        $this->collection = $col;
     }
-    public function getCollectionType() {
-        return ($this->collection && $this->collection !== true) ? $this->collection : $this->getDataType();
+    public function getCollection() {
+        return $this->collection;
     }
-    public function parse($an) {
-        if (isset($an['Attribute'])) {
-            $this->type = self::TYPE_ATTRIBUTE;
-        } elseif (isset($an['Element'])) {
-            $e = $an['Element'];
-            if ($e->nodeName)
-                $this->options['nodeName'] = $e->nodeName;
-            $this->type = self::TYPE_ELEMENT;
-        } else {
-            throw new MetaDataException("Class-Property {$this->getKlass()->getName()}::{$this->name} have to be either a @Xml\Attribute or @Xml\Element");
-        }
-        if (isset($an['Collection'])) {
-            $c = $an['Collection'];
-            $this->collection = $c->type ? $c->type : true;
-        }
+    /*public function getCollectionType() {
+        return ($this->collection && $this->collection !== true) ? $this->collection->getType() : $this->getDataType();
+    }*/
+    public function setDataType($type) {
+        $this->data_type = $type;
+    }
+    public function getDataType() {
+        return $this->data_type;
     }
     
-    public function serialize() {
-        return serialize(array(
-            'name' => $this->name,
-            'type' => $this->type,
-            'options' => $this->options,
-            'collection' => $this->collection,
-            'data_type' => $this->data_type,
-        ));
-    }
-    public function unserialize($serialized) {
-        $data = unserialize($serialized);
-        $this->name = $data['name'];
-        $this->type = $data['name'];
-        $this->options = $data['options'];
-        $this->collection = $data['collection'];
-        $this->data_type = $data['data_type'];
+    public function getParent() {
+        return $this->_parent;
     }
     public function getKlass() {
         return $this->_parent;
     }
+    public function serialize() {
+        $d = array_merge(parent::serialize(false), get_object_vars($this));
+        unset($d['_parent']);
+        return serialize($d);
+    }
+    public function unserialize($serialized) {
+        $d = is_string($serialized) ? unserialize($serialized) : $serialized;
+        parent::unserialize($d);
+        foreach (get_class_vars(__CLASS__) as $key) {
+            if (array_key_exists($d[$key]))
+                $this->{$key} = $d[$key];
+        }
+        foreach ($this->properties as $a) {
+            /* @var $a Attribute */
+            $a->_setParent($this);
+        }
+    }
+    
     /**
      * Used to update parent-assoc after unserialization
      * @protected Only to use from same NameSpace
@@ -74,14 +91,5 @@ class Property extends Generic implements \Serializable {
      */
     public function _setParent(Klass $klass){
         $this->_parent = $klass;
-    }
-    public function getOption($opt, $default = null) {
-        if ($this->_parent)
-            return parent::getOption($opt, $this->_parent->getOption($opt, $default));
-        else
-            return parent::getOption($opt, $default);
-    }
-    public function getOptions() {
-        return array_merge($this->_parent->getOptions(), parent::getOptions());
     }
 }

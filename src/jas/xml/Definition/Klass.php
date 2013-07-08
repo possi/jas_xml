@@ -1,9 +1,11 @@
 <?php
 
 namespace jas\xml\Definition;
+use jas\xml\Definition\Klass\KlassTypeDefinition;
+use jas\xml\Definition\Klass\Document;
 use jas\xml\MetaDataException;
 
-class Klass extends Generic implements \Serializable {
+class Klass extends GenericXmlDefinition implements \Serializable {
     const TYPE_DOCUMENT = 1;
     const TYPE_NODE = 2;
     
@@ -16,34 +18,25 @@ class Klass extends Generic implements \Serializable {
      * @param string $class
      */
     public function __construct($class) {
+        parent::__construct();
         $this->class = $class;
-    }
-    public function parse($an) {
-        parent::parse($an);
-        if (isset($an['Document'])) {
-            $d = $an['Document'];
-            if ($d->version)
-                $this->options['version'] = $d->version;
-            if ($d->enc)
-                $this->options['encoding'] = $d->encoding;
-            if ($d->rootNode)
-                $this->options['rootNode'] = $d->rootNode;
-            if ($d->attribs)
-                $this->options['attribs'] = $d->attribs;
-            $this->type = self::TYPE_DOCUMENT;
-        } elseif (isset($an['Element'])) {
-            $e = $an['Element'];
-            if ($e->nodeName)
-                $this->options['nodeName'] = $e->nodeName;
-            $this->type = self::TYPE_NODE;
-        } else {
-            throw new MetaDataException("Class $this->class have to be either a @Xml\Document or @Xml\Element");
-        }
     }
     public function getName() {
         return $this->class;
     }
     public function getType() {
+        if ($this->type instanceof Document)
+            return self::TYPE_DOCUMENT;
+        else
+            return self::TYPE_NODE;
+    }
+    public function setTypeDefinition(KlassTypeDefinition $def) {
+        $this->type = $def;
+    }
+    /**
+     * @return KlassTypeDefinition
+     */
+    public function getTypeDefinition() {
         return $this->type;
     }
     public function addProperty(Property $a) {
@@ -60,30 +53,22 @@ class Klass extends Generic implements \Serializable {
     public function setParent(Klass $parent) {
         $this->_parent = $parent;
     }
-    public function getOption($opt, $default = null) {
-        if ($this->_parent)
-            return parent::getOption($opt, $this->_parent->getOption($opt, $default));
-        else
-            return parent::getOption($opt, $default);
-    }
-    public function getOptions() {
-        return array_merge($this->_parent->getOptions(), parent::getOptions());
+    public function getParent() {
+        return $this->_parent;
     }
     
     public function serialize() {
-        return serialize(array(
-            'class' => $this->class,
-            'type' => $this->type,
-            'options' => $this->options,
-            'properties' => $this->properties,
-        ));
+        $d = array_merge(parent::serialize(false), get_object_vars($this));
+        unset($d['_parent']);
+        return serialize($d);
     }
     public function unserialize($serialized) {
-        $data = unserialize($serialized);
-        $this->class = $data['class'];
-        $this->type = $data['type'];
-        $this->options = $data['options'];
-        $this->properties = $data['properties'];
+        $d = is_string($serialized) ? unserialize($serialized) : $serialized;
+        parent::unserialize($d);
+        foreach (get_class_vars(__CLASS__) as $key) {
+            if (array_key_exists($d[$key]))
+                $this->{$key} = $d[$key];
+        }
         foreach ($this->properties as $a) {
             /* @var $a Attribute */
             $a->_setParent($this);

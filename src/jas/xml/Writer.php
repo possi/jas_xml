@@ -3,7 +3,6 @@
 namespace jas\xml;
 
 use jas\xml\Meta\Option;
-
 use jas\xml\Helper\Helper;
 use jas\xml\Accessor\ReflectionAccessor;
 use jas\xml\Definition\Property;
@@ -23,18 +22,19 @@ class Writer {
         $m = MetaStorage::getInstance()->getMeta($this->object);
         if ($m->getType() != Klass::TYPE_DOCUMENT)
             throw new Exception("The Object have to be a @Xml\Document");
+        /* @var $m \jas\xml\Definition\Klass */
         
-        $version = $m->getOption('version', '1.0');
-        $encoding = $m->getOption('encoding', 'utf-8');
-        $dom = new \DOMDocument($version, $encoding);
+        $mtd = $m->getTypeDefinition();
+        
+        $dom = new \DOMDocument($mtd->getVersion(), $mtd->getEncoding());
         $dom->formatOutput = $m->getOption(Option::FORMAT_OUTPUT, false);
         $dom->preserveWhiteSpace = $m->getOption(Option::PRESERVE_WHITE_SPACE, false);
         
-        $root_name = $m->getOption('rootNode', 'root');
-        $root = $dom->createElement($root_name);
-        $dom->appendChild($root);
         
-        foreach ($m->getOption('attribs', array()) as $attrib => $aval) {
+        $rn = $mtd->getRootNode();
+        $root = $dom->createElement($rn->getName());
+        $dom->appendChild($root);
+        foreach ($rn->getAttributes() as $attrib => $aval) {
             $root->setAttribute($attrib, $aval);
         }
         
@@ -49,13 +49,18 @@ class Writer {
             /* @var $prop Property */
             if ($prop->getType() == Property::TYPE_ATTRIBUTE) {
                 $node->setAttribute($prop->getName(), $access->get($prop->getName()));
+            } elseif ($prop->getType() == Property::TYPE_VALUE) {
+                $value = Helper::getNormalizer($prop)->valueToString($access->get($prop->getName()));
+                $node->nodeValue = $value;
             } else {
                 $value = $access->get($prop->getName());
                 if ($value !== null) {
-                    if ($prop->isCollection()) {
+                    if ($prop->getCollection()) {
                         if (!is_array($value) && !($value instanceof \Traversable))
                             throw new Exception("Invalid @Xml\Collection-Value: ".gettype($value).(is_object($value)?" ".get_class($value):""));
-                        $node_name = $prop->getOption('nodeName', $prop->getName());
+                        $node_name = $prop->getTypeDefinition()->getName();
+                        if (empty($node_name))
+                            $node_name = $prop->getName();
                         $child = $node->ownerDocument->createElement($node_name);
                         foreach ($value as $element) {
                             $this->valueNode($prop, $klass, $child, $element);
@@ -71,14 +76,25 @@ class Writer {
     protected function valueNode(Property $prop, Klass $klass, \DOMElement $node, $value) {
         if (is_object($value) && ($m = MetaStorage::getInstance()->getMeta($value)) != false) {
             $m->setParent($klass);
-            $node_name = $prop->getOption('nodeName', $m->getOption('nodeName', $prop->getName()));
+            $node_name = $prop->getTypeDefinition()->getName();
+            if (empty($node_name))
+                $node_name = $prop->getName();
             $child = $node->ownerDocument->createElement($node_name);
+            if (!$prop->getDataType() || !is_a($value, $prop->getDataType())) {
+                if (($type = $prop->getTypeForClass($class = get_class($value))) != null) {
+                    $child->setAttribute($prop->getOption('typeAttributeName', 'type'), $type);
+                } else {
+                    $child->setAttribute($prop->getOption('classAttributeName', 'class'), $class);
+                }
+            }
             $this->addProperties($child, $m, $value);
             $node->appendChild($child);
         } else {
-            $node_name = $prop->getOption('nodeName', $prop->getName());
+            $node_name = $prop->getTypeDefinition()->getName();
+            if (empty($node_name))
+                $node_name = $prop->getName();
             $child = $node->ownerDocument->createElement($node_name);
-            $value = Helper::getNormalizer($klass)->valueToString($value);
+            $value = Helper::getNormalizer($prop)->valueToString($value);
             $child->nodeValue = $value;
             $node->appendChild($child);
         }

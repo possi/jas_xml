@@ -6,6 +6,7 @@ class DefaultNormalizer implements Normalizer {
     public function valueToString($value) {
         switch (gettype($value)) {
             case 'bool':
+            case 'boolean':
                 return $value ? 'true' : 'false';
             default:
                 return (string) $value;

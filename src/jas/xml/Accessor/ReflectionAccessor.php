@@ -2,6 +2,9 @@
 
 namespace jas\xml\Accessor;
 
+/**
+ * Uses \ReflectionProperty::setAccessible to read/modify protected Attributes
+ */
 class ReflectionAccessor implements Accessor {
     private $o;
     /**
@@ -31,5 +34,14 @@ class ReflectionAccessor implements Accessor {
     }
     public function set($property, $value) {
         return $this->prop($property)->setValue($this->o, $value);
+    }
+    public function callEvent($method, $eventObj) {
+        foreach ($this->r->getMethods(\ReflectionMethod::IS_PUBLIC | \ReflectionMethod::IS_PROTECTED) as $m) {
+            /* @var $p \ReflectionMethod */
+            if ($m->getName() == $method) {
+                return $m->invoke($this->o, $eventObj);
+            }
+        }
+        throw new AccessorException("Method ".get_class($this->o)."::$property not found. Have to be a non-private class-method.");
     }
 }

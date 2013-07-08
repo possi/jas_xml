@@ -42,5 +42,16 @@ $xml = jas\xml\Writer::toXML(new MyObject); -> /*
 </foo>
 */
 
-$myobject = jas\xml\Reader::fromXML($xml);
+$myobject = jas\xml\Reader::fromXML('MyObject', $xml);
 ```
+
+TODO
+----
+ - Outsource Reader/Writer-Logic to "layouts". A Layout should describe, how data is mapped between object and XML. This is
+    especially for Lists which might be mixed up by different types of elements, ... That will be a very complex step.
+ - Group Writer an Reader into a "Processor" that can be configuried with default options, or at which XML-Definitions
+    can be set without Annotations (to support php or yaml configurations and so on).
+    (implementation issue: how to manage "static" usage via reader/writer!?)
+ - Read attribute/element type from @var-doccomment with namespace parsing
+ - Namespace support
+ - Dynamic TypeMap to automaticly convert type-name to class name in an php namespace via callback
