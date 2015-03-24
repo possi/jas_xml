@@ -4,7 +4,7 @@ namespace jas\xml\Definition\Klass;
 
 class RootNode {
     private $n;
-    private $a;
+    private $a = array();
     
     public function getName() {
         return $this->n;

@@ -3,15 +3,18 @@
 namespace jas\xml\Definition;
 use jas\xml\Definition\Property\ElementNode;
 use jas\xml\Definition\Property\Collection;
+use jas\xml\Definition\Property\FragmentNode;
 use jas\xml\Definition\Property\PropertyTypeDefinition;
 use jas\xml\Definition\Property\AttributeNode;
 use jas\xml\Definition\Property\ValueNode;
+use jas\xml\Meta\Fragment;
 use jas\xml\MetaDataException;
 
 class Property extends GenericXmlDefinition implements \Serializable {
     const TYPE_ATTRIBUTE = 1;
     const TYPE_ELEMENT = 2;
     const TYPE_VALUE = 3;
+    const TYPE_FRAGMENT = 4;
     
     private $_parent;
     private $name;
@@ -32,6 +35,8 @@ class Property extends GenericXmlDefinition implements \Serializable {
             return self::TYPE_VALUE;
         elseif ($this->type instanceof ElementNode)
             return self::TYPE_ELEMENT;
+        elseif ($this->type instanceof FragmentNode)
+            return self::TYPE_FRAGMENT;
         else
             return self::TYPE_ATTRIBUTE;
     }

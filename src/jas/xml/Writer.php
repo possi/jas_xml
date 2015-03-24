@@ -8,6 +8,7 @@ use jas\xml\Accessor\ReflectionAccessor;
 use jas\xml\Definition\Property;
 use jas\xml\Definition\Klass;
 use jas\xml\Helper\MetaStorage;
+use Symfony\Component\Config\Definition\Exception\Exception;
 
 class Writer {
     protected $object;
@@ -21,7 +22,7 @@ class Writer {
     public function getDOM() {
         $m = MetaStorage::getInstance()->getMeta($this->object);
         if ($m->getType() != Klass::TYPE_DOCUMENT)
-            throw new Exception("The Object have to be a @Xml\Document");
+            throw new Exception("The Object have to be a @Xml\\Document");
         /* @var $m \jas\xml\Definition\Klass */
         
         $mtd = $m->getTypeDefinition();
@@ -57,11 +58,15 @@ class Writer {
                 if ($value !== null) {
                     if ($prop->getCollection()) {
                         if (!is_array($value) && !($value instanceof \Traversable))
-                            throw new Exception("Invalid @Xml\Collection-Value: ".gettype($value).(is_object($value)?" ".get_class($value):""));
-                        $node_name = $prop->getTypeDefinition()->getName();
-                        if (empty($node_name))
-                            $node_name = $prop->getName();
-                        $child = $node->ownerDocument->createElement($node_name);
+                            throw new Exception("Invalid @Xml\\Collection-Value: ".gettype($value).(is_object($value)?" ".get_class($value):""));
+                        if ($prop->getType() == Property::TYPE_FRAGMENT) {
+                            $child = $node->ownerDocument->createDocumentFragment();
+                        } else {
+                            $node_name = $prop->getTypeDefinition()->getName();
+                            if (empty($node_name))
+                                $node_name = $prop->getName();
+                            $child = $node->ownerDocument->createElement($node_name);
+                        }
                         foreach ($value as $element) {
                             $this->valueNode($prop, $klass, $child, $element);
                         }
@@ -73,12 +78,17 @@ class Writer {
             }
         }
     }
-    protected function valueNode(Property $prop, Klass $klass, \DOMElement $node, $value) {
+    protected function valueNode(Property $prop, Klass $klass, \DOMNode $node, $value) {
         if (is_object($value) && ($m = MetaStorage::getInstance()->getMeta($value)) != false) {
             $m->setParent($klass);
-            $node_name = $prop->getTypeDefinition()->getName();
+            if ($m->getTypeDefinition() instanceof Klass\ElementNode)
+                $node_name = $m->getTypeDefinition()->getName();
+            else
+                $node_name = $prop->getTypeDefinition()->getName();
             if (empty($node_name))
                 $node_name = $prop->getName();
+            if (empty($node_name))
+                throw new Exception("Object ".get_class($value)." as Element of Document Fragment has no name defined.");
             $child = $node->ownerDocument->createElement($node_name);
             if (!$prop->getDataType() || !is_a($value, $prop->getDataType())) {
                 if (($type = $prop->getTypeForClass($class = get_class($value))) != null) {
@@ -95,7 +105,7 @@ class Writer {
                 $node_name = $prop->getName();
             $child = $node->ownerDocument->createElement($node_name);
             $value = Helper::getNormalizer($prop)->valueToString($value);
-            $child->nodeValue = $value;
+            $child->nodeValue = htmlspecialchars($value);
             $node->appendChild($child);
         }
     }

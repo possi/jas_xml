@@ -2,7 +2,7 @@
 
 namespace jas\xml\Meta;
 use jas\xml\MetaDataException;
-use jas\xml\Definition\Klass\Document;
+use jas\xml\Definition\Klass\Document as KlassDocument;
 use jas\xml\Definition\Klass;
 use jas\xml\Definition\Property;
 use jas\xml\Definition\Definition;
@@ -43,8 +43,8 @@ class Option extends Annotation {
     protected function defineDef(Definition $def) {
         foreach ($this->value as $name => &$value) {
             if ($name == 'formatOutput' || $name == 'preserveWhiteSpace') {
-                if (!($def instanceof Klass) || !($def->getTypeDefinition() instanceof Document))
-                    throw new MetaDataException("Option {$name} can be only set on @Xml\Document-Classes");
+                if (!($def instanceof Klass) || !($def->getTypeDefinition() instanceof KlassDocument))
+                    throw new MetaDataException("Option {$name} can be only set on @Xml\\Document-Classes");
                 $def->getOptions()->$name = self::bool($value);
             } else {
                 $def->getOptions()->$name = $value;
